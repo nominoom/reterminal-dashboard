@@ -2,15 +2,15 @@
   "status": "DEEP FOCUS",
   "statusType": "available",
   "statusBadge": "DO NOT DISTURB",
-  "nextAvailableTime": "3:30 PM",
-  "availabilityNote": "In flow state — ping Slack for urgent matters",
+  "nextAvailableTime": "4:00 PM",
+  "availabilityNote": "Building Vercel updates",
+  "customNote": "In flow state — ping Slack for urgent matters",
   "linkUrl": "https://nominoom.com",
   "linkText": "nominoom.com",
   "linkSubtitle": "Scan QR for portfolio & links",
   "showQr": true,
   "theme": "standard",
-  "customNote": "In flow state — ping Slack for urgent matters",
   "showHeaderClock": true,
   "showFooter": true,
-  "updatedAt": "2026-09-15T19:01:03.032Z"
+  "updatedAt": "2026-09-15T19:18:17.106Z"
 }

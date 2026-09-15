@@ -1,6 +1,6 @@
 /**
  * reTerminal Admin Panel Controller
- * Handles presets, time math, form submissions, and live preview scaling.
+ * Handles presets, time math, form submissions, and live preview sync across Vercel & local servers.
  */
 
 // Presets Definition
@@ -62,12 +62,13 @@ function getTimeOffset(minutesToAdd) {
 }
 
 // Show Toast Notification
-function showToast(message = 'Saved successfully!') {
+function showToast(message = 'Saved successfully!', isError = false) {
     const toast = document.getElementById('toast');
     if (toast) {
-        toast.textContent = `✓ ${message}`;
+        toast.textContent = isError ? `❌ ${message}` : `✓ ${message}`;
+        toast.style.backgroundColor = isError ? 'rgba(239, 68, 68, 0.95)' : 'rgba(34, 197, 94, 0.95)';
         toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 2600);
+        setTimeout(() => toast.classList.remove('show'), 2800);
     }
 }
 
@@ -84,10 +85,33 @@ function adjustPreviewScale() {
 
 window.addEventListener('resize', adjustPreviewScale);
 
+// Check environment & storage info
+async function checkServerInfo() {
+    try {
+        const res = await fetch('/api/info');
+        if (res.ok) {
+            const info = await res.json();
+            const badge = document.getElementById('serverStorageBadge');
+            if (badge) {
+                if (info.cloudKVConfigured) {
+                    badge.innerHTML = '☁️ Cloud KV Synced';
+                    badge.style.color = '#4ade80';
+                } else if (info.isVercel) {
+                    badge.innerHTML = '⚡ Vercel Serverless';
+                    badge.style.color = '#60a5fa';
+                } else {
+                    badge.innerHTML = '💾 Local Disk Mode';
+                    badge.style.color = '#a78bfa';
+                }
+            }
+        }
+    } catch (e) {}
+}
+
 // Load current configuration into admin form
 async function loadStatus() {
     try {
-        const res = await fetch('/api/status');
+        const res = await fetch(`/api/status?_t=${Date.now()}`, { cache: 'no-store' });
         const data = await res.json();
         
         document.getElementById('inputStatus').value = data.status || '';
@@ -158,9 +182,16 @@ function setQuickTime(type) {
 
 // Save Form to Server
 async function saveForm(isPreset = false, toastMessage = 'Display updated!') {
+    const btn = document.getElementById('btnSave');
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+    }
+
     const payload = {
         status: document.getElementById('inputStatus').value.trim().toUpperCase() || 'AVAILABLE',
-        statusBadge: document.getElementById('inputBadge').value.trim().toUpperCase() || 'STATUS',
+        statusBadge: document.getElementById('inputBadge').value.trim().toUpperCase() || 'OPEN FOR QUESTIONS',
         nextAvailableTime: document.getElementById('inputNextTime').value.trim() || 'Now',
         availabilityNote: document.getElementById('inputNote').value.trim(),
         customNote: document.getElementById('inputNote').value.trim(),
@@ -186,15 +217,24 @@ async function saveForm(isPreset = false, toastMessage = 'Display updated!') {
             if (iframe && iframe.contentWindow) {
                 iframe.contentWindow.location.reload();
             }
+        } else {
+            showToast(result.error || 'Update failed', true);
         }
     } catch (err) {
         console.error('Save failed:', err);
-        alert('Could not update status. Check server connection.');
+        showToast('Network error saving status', true);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.innerHTML = originalText;
+        }
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     loadStatus();
+    checkServerInfo();
 
     // Form Submit Listener
     const form = document.getElementById('statusForm');

@@ -2,6 +2,8 @@
 
 A high-contrast, pixel-perfect 800×480 monochrome status and availability dashboard tailored specifically for the **Seeed Studio reTerminal E10-1 / reTerminal 1001** black-and-white e-paper display.
 
+Works seamlessly both **locally** (on reTerminal / Raspberry Pi) and hosted on **Vercel** for remote cloud control from anywhere.
+
 ---
 
 ## 🌟 Key Features
@@ -12,7 +14,7 @@ A high-contrast, pixel-perfect 800×480 monochrome status and availability dashb
   - Displays your **Next Available Time** (e.g. `Now`, `3:30 PM`, `Tomorrow 9:00 AM`).
   - Direct prominent link to **`nominoom.com`** along with a **high-contrast scannable QR Code** rendered client-side on canvas.
   - Live digital clock & date header.
-  - Instant live synchronization over **Server-Sent Events (SSE)** — zero screen flickers or manual refreshes required.
+  - **Flicker-Free Smart Polling & SSE Sync** — updates dynamically without screen jitter or full reloads.
   - Optional **Inverted High-Contrast Dark Mode** (white-on-black).
 
 - **Mobile & Desktop Admin Panel (`/admin`)**:
@@ -20,35 +22,47 @@ A high-contrast, pixel-perfect 800×480 monochrome status and availability dashb
   - **Quick Time Calculation Chips**: `Now`, `+15m`, `+30m`, `+45m`, `+1h`, `+2h`, `5:00 PM`, `Tomorrow 9:00 AM`.
   - **Link & QR Code Config**: Dynamically edit destination URL, title, and subtitles.
   - **Live 800×480 Simulator Preview**: Embedded mirrored preview that shows exactly what the reTerminal sees in real-time.
-  - Accessible from your smartphone, tablet, or laptop on your local Wi-Fi / LAN.
+  - **Live Storage Indicator**: Shows whether cloud KV or local disk is actively synced.
 
 ---
 
-## 🚀 Quick Start
+## ☁️ Deploying to Vercel
+
+The dashboard is configured for zero-friction deployment to Vercel with the included `vercel.json`.
+
+### 1. Push to GitHub & Import to Vercel
+Simply push this repository to GitHub and link it in the [Vercel Dashboard](https://vercel.com/new).
+
+### 2. (Recommended) Connect Cloud Persistence
+By default in serverless, each function has isolated temporary storage. To make status changes from `/admin` persist globally and instantly sync to your reTerminal display:
+
+1. In your Vercel project, go to **Storage** -> **Create Database** -> select **KV** (or [Upstash Redis](https://upstash.com/)).
+2. Connect the KV database to your project.
+3. Vercel will automatically set the following environment variables:
+   - `KV_REST_API_URL`
+   - `KV_REST_API_TOKEN`
+   (Or `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`)
+
+The backend automatically detects these credentials and synchronizes status updates globally across all devices!
+
+---
+
+## 🚀 Local Quick Start
 
 ### 1. Install & Start Server
 
 ```bash
 cd reterminal-dashboard
 npm install
-npm start
+npm run dev
 ```
 
-By default, the server runs on port `3000`.
+Server runs on port `3000`.
 
 ### 2. Accessing the Interfaces
 
-- **On your reTerminal**:
-  Open Chromium in kiosk mode to:
-  ```
-  http://localhost:3000/main
-  ```
-
-- **On your Phone / Laptop**:
-  Open your browser and navigate to:
-  ```
-  http://<YOUR_COMPUTER_OR_RETERMINAL_IP>:3000/admin
-  ```
+- **Display Screen**: `http://localhost:3000/main` (or your Vercel URL `https://your-app.vercel.app/main`)
+- **Admin Control Panel**: `http://localhost:3000/admin` (or `https://your-app.vercel.app/admin`)
 
 ---
 
@@ -56,12 +70,12 @@ By default, the server runs on port `3000`.
 
 To run this automatically on boot on the reTerminal (Raspberry Pi OS):
 
-1. Install Chromium and unclutter (to hide mouse cursor):
+1. Install Chromium and unclutter:
    ```bash
    sudo apt-get install -y chromium-browser unclutter
    ```
 
-2. Add a systemd service or autostart entry:
+2. Add a desktop autostart entry:
    ```bash
    mkdir -p ~/.config/autostart
    nano ~/.config/autostart/reterminal-dashboard.desktop
@@ -72,13 +86,14 @@ To run this automatically on boot on the reTerminal (Raspberry Pi OS):
    [Desktop Entry]
    Type=Application
    Name=reTerminal Dashboard
-   Exec=chromium-browser --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 http://localhost:3000/main
+   Exec=chromium-browser --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 https://your-app.vercel.app/main
    ```
 
 ---
 
 ## ⚙️ REST API Endpoints
 
-- `GET /api/status`: Fetch current JSON state.
+- `GET /api/status`: Fetch current status state (cached / cloud / local).
 - `POST /api/status`: Update status, notes, time, link, and theme options.
-- `GET /api/events`: Server-Sent Events stream for instant real-time pushes.
+- `GET /api/events`: Server-Sent Events stream.
+- `GET /api/info`: Serverless environment diagnostic & storage status.

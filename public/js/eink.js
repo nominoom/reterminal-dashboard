@@ -1,10 +1,31 @@
 /**
  * reTerminal 1001 E-Ink Display Client Controller
- * Handles real-time SSE updates, dynamic QR generation, and precise clock timing.
+ * Optimized for Vercel Serverless deployments and local standalone execution.
+ * Includes smart polling, SSE listener, offline cache recovery, and flicker-free DOM updates.
  */
 
 let qrCodeInstance = null;
-let currentConfig = {};
+let currentConfig = null;
+let lastRenderedHash = '';
+
+// Helper to compute a simple signature of data to prevent unnecessary DOM redraws
+function computeDataHash(data) {
+    if (!data) return '';
+    return [
+        data.status,
+        data.statusBadge,
+        data.nextAvailableTime,
+        data.availabilityNote,
+        data.customNote,
+        data.linkUrl,
+        data.linkText,
+        data.linkSubtitle,
+        data.showQr,
+        data.theme,
+        data.showFooter,
+        data.updatedAt
+    ].join('|');
+}
 
 function initClock() {
     function updateClock() {
@@ -37,12 +58,25 @@ function initClock() {
 
 function updateUI(data) {
     if (!data) return;
+
+    // Check if configuration has actually changed
+    const newHash = computeDataHash(data);
+    if (newHash === lastRenderedHash) {
+        return; // Skip redraw to avoid any unnecessary CPU/flicker
+    }
+    lastRenderedHash = newHash;
     currentConfig = data;
+
+    // Cache locally
+    try {
+        localStorage.setItem('reterminal_cached_status', JSON.stringify(data));
+    } catch (e) {
+        // LocalStorage quota or privacy mode
+    }
 
     const dashboard = document.getElementById('dashboard');
     const statusText = document.getElementById('mainStatus');
     const badgeText = document.getElementById('statusBadge');
-    const nextTime = document.getElementById('nextTime');
     const nextTimeHighlight = document.getElementById('nextTimeHighlight');
     const customSubnote = document.getElementById('customSubnote');
     const footerDomain = document.getElementById('footerDomain');
@@ -61,14 +95,17 @@ function updateUI(data) {
 
     // 2. Main Status Text
     if (statusText) {
-        statusText.textContent = data.status || 'AVAILABLE';
+        const text = data.status || 'AVAILABLE';
+        statusText.textContent = text;
         
-        // Dynamically scale font size if the text is particularly long to prevent wrapping out of bounds
-        const len = (data.status || '').length;
-        if (len > 16) {
-            statusText.style.fontSize = '50px';
-        } else if (len > 12) {
-            statusText.style.fontSize = '62px';
+        // Dynamically scale font size if text is long
+        const len = text.length;
+        if (len > 18) {
+            statusText.style.fontSize = '46px';
+        } else if (len > 13) {
+            statusText.style.fontSize = '58px';
+        } else if (len > 10) {
+            statusText.style.fontSize = '68px';
         } else {
             statusText.style.fontSize = '78px';
         }
@@ -76,7 +113,7 @@ function updateUI(data) {
 
     // 3. Status Badge Tag
     if (badgeText) {
-        badgeText.textContent = data.statusBadge || 'STATUS';
+        badgeText.textContent = data.statusBadge || 'OPEN FOR QUESTIONS';
     }
 
     // 4. Next Available Time
@@ -86,8 +123,9 @@ function updateUI(data) {
 
     // 5. Custom Note / Context
     if (customSubnote) {
-        if (data.availabilityNote || data.customNote) {
-            customSubnote.textContent = data.availabilityNote || data.customNote;
+        const note = data.availabilityNote || data.customNote;
+        if (note && note.trim().length > 0) {
+            customSubnote.textContent = note;
             customSubnote.style.display = 'block';
         } else {
             customSubnote.style.display = 'none';
@@ -99,7 +137,7 @@ function updateUI(data) {
         footerDomain.textContent = data.linkText || 'nominoom.com';
     }
     if (footerSubtext) {
-        footerSubtext.textContent = data.linkSubtitle || 'Scan to view link';
+        footerSubtext.textContent = data.linkSubtitle || 'Scan QR for portfolio & projects';
     }
 
     // 7. Footer Visibility
@@ -118,7 +156,8 @@ function updateUI(data) {
                     width: 62,
                     height: 62,
                     colorDark: '#000000',
-                    colorLight: '#ffffff'
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
                 });
             } else {
                 qrCodeInstance.makeCode(targetUrl);
@@ -129,8 +168,26 @@ function updateUI(data) {
     }
 }
 
-// Connect to Server-Sent Events for real-time live push updates
+// Fetch current status via standard HTTP
+async function fetchStatus() {
+    try {
+        const res = await fetch(`/api/status?_t=${Date.now()}`, {
+            cache: 'no-store',
+            headers: { 'Pragma': 'no-cache' }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            updateUI(data);
+        }
+    } catch (err) {
+        console.warn('[Display] Poll fetch error:', err.message);
+    }
+}
+
+// Server-Sent Events setup with graceful fallback
 function setupSSE() {
+    if (typeof EventSource === 'undefined') return;
+
     try {
         const evtSource = new EventSource('/api/events');
 
@@ -139,33 +196,37 @@ function setupSSE() {
                 const data = JSON.parse(event.data);
                 updateUI(data);
             } catch (err) {
-                console.error('Error parsing SSE payload:', err);
+                // Parse error
             }
         };
 
         evtSource.onerror = function () {
-            console.warn('SSE connection lost, reconnecting...');
-            // Fallback short poll while reconnecting
-            fetchStatusFallback();
+            // In serverless environments (Vercel), SSE streams close naturally.
+            // Our active poller guarantees real-time freshness seamlessly.
         };
     } catch (e) {
-        console.error('SSE initialization failed:', e);
-        fetchStatusFallback();
-        setInterval(fetchStatusFallback, 5000);
+        // SSE not supported or blocked
     }
 }
 
-// Fallback fetch helper
-function fetchStatusFallback() {
-    fetch('/api/status')
-        .then(res => res.json())
-        .then(data => updateUI(data))
-        .catch(err => console.error('Error fetching fallback status:', err));
+// Restore cached configuration immediately on load to prevent blank flash
+function restoreFromCache() {
+    try {
+        const cached = localStorage.getItem('reterminal_cached_status');
+        if (cached) {
+            const parsed = JSON.parse(cached);
+            updateUI(parsed);
+        }
+    } catch (e) {}
 }
 
 // Initialization on DOM load
 document.addEventListener('DOMContentLoaded', () => {
+    restoreFromCache();
     initClock();
     setupSSE();
-    fetchStatusFallback();
+    fetchStatus();
+
+    // Continuous smart polling every 3 seconds for 100% reliable Vercel serverless syncing
+    setInterval(fetchStatus, 3000);
 });
