@@ -1,9 +1,9 @@
 {
-  "status": "DEEP FOCUS",
+  "status": "IN A MEETING",
   "statusType": "available",
-  "statusBadge": "DO NOT DISTURB",
-  "nextAvailableTime": "4:00 PM",
-  "availabilityNote": "Building Vercel updates",
+  "statusBadge": "BUSY",
+  "nextAvailableTime": "5:30 PM",
+  "availabilityNote": "Testing live update",
   "customNote": "In flow state — ping Slack for urgent matters",
   "linkUrl": "https://nominoom.com",
   "linkText": "nominoom.com",
@@ -12,5 +12,5 @@
   "theme": "standard",
   "showHeaderClock": true,
   "showFooter": true,
-  "updatedAt": "2026-09-15T19:18:17.106Z"
+  "updatedAt": "2026-09-15T19:47:18.502Z"
 }
