@@ -5,13 +5,12 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-// Optional SDK for Vercel Global Config / Edge Config
+// Optional SDKs
 let globalConfigSdk = null;
-try {
-  globalConfigSdk = require('@vercel/global-config');
-} catch (e) {
-  // SDK not present
-}
+try { globalConfigSdk = require('@vercel/global-config'); } catch (e) {}
+
+let vercelBlobSdk = null;
+try { vercelBlobSdk = require('@vercel/blob'); } catch (e) {}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,7 +23,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// In-memory default status
+// Default status object
 const DEFAULT_STATUS = {
   status: 'AVAILABLE',
   statusType: 'available',
@@ -44,7 +43,7 @@ const DEFAULT_STATUS = {
 
 let inMemoryStatus = { ...DEFAULT_STATUS };
 
-// Helper to determine KV credentials if available (Vercel KV or Upstash Redis REST)
+// Helper to determine Upstash / KV credentials
 function getKVCredentials() {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -54,55 +53,18 @@ function getKVCredentials() {
   return null;
 }
 
-// Helper to determine Global Config details
-function getGlobalConfigInfo() {
-  const connString = process.env.GLOBAL_CONFIG || process.env.EDGE_CONFIG;
-  if (!connString) return null;
-  if (globalConfigSdk && globalConfigSdk.parseConnectionString) {
-    try {
-      const parsed = globalConfigSdk.parseConnectionString(connString);
-      return {
-        id: parsed.id,
-        token: parsed.token,
-        connString
-      };
-    } catch (e) {}
-  }
-  // Fallback regex extractor for id
-  const match = connString.match(/(ecfg_[a-zA-Z0-9]+)/);
-  return {
-    id: match ? match[1] : null,
-    connString
-  };
-}
-
 // In-memory clients list for Server-Sent Events (SSE)
 let sseClients = [];
 
 // Helper to load status across multiple storage tiers
 async function getStatus() {
-  // Tier 1: Vercel Global Config / Edge Config
-  const gcInfo = getGlobalConfigInfo();
-  if (gcInfo && globalConfigSdk) {
-    try {
-      const stored = await globalConfigSdk.get('status');
-      if (stored) {
-        const parsed = typeof stored === 'string' ? JSON.parse(stored) : stored;
-        inMemoryStatus = { ...DEFAULT_STATUS, ...parsed };
-        return inMemoryStatus;
-      }
-    } catch (err) {
-      console.warn('[Global Config] Read error:', err.message);
-    }
-  }
-
-  // Tier 2: Cloud KV (Vercel KV / Upstash Redis REST)
+  // Tier 1: Cloud KV (Upstash Redis / Vercel KV)
   const kv = getKVCredentials();
   if (kv) {
     try {
       const res = await fetch(`${kv.url}/get/reterminal_status`, {
         headers: { Authorization: `Bearer ${kv.token}` },
-        signal: AbortSignal.timeout(3500)
+        signal: AbortSignal.timeout(3000)
       });
       if (res.ok) {
         const json = await res.json();
@@ -113,11 +75,28 @@ async function getStatus() {
         }
       }
     } catch (err) {
-      console.warn('[KV Storage] Read error:', err.message);
+      console.warn('[Storage] KV read error:', err.message);
     }
   }
 
-  // Tier 3: Local persistent file (data/status.json)
+  // Tier 2: Vercel Blob
+  if (process.env.BLOB_READ_WRITE_TOKEN && vercelBlobSdk) {
+    try {
+      const blobs = await vercelBlobSdk.list({ prefix: 'status.json' });
+      if (blobs.blobs.length > 0) {
+        const res = await fetch(blobs.blobs[0].url, { cache: 'no-store' });
+        if (res.ok) {
+          const json = await res.json();
+          inMemoryStatus = { ...DEFAULT_STATUS, ...json };
+          return inMemoryStatus;
+        }
+      }
+    } catch (err) {
+      console.warn('[Storage] Blob read error:', err.message);
+    }
+  }
+
+  // Tier 3: Local disk file (data/status.json)
   try {
     if (fs.existsSync(DATA_FILE)) {
       const raw = fs.readFileSync(DATA_FILE, 'utf8');
@@ -125,10 +104,10 @@ async function getStatus() {
       return inMemoryStatus;
     }
   } catch (err) {
-    // Local filesystem read warning
+    // Local read error
   }
 
-  // Tier 4: /tmp fallback (useful in serverless if disk is read-only)
+  // Tier 4: /tmp file fallback
   try {
     if (fs.existsSync(TMP_DATA_FILE)) {
       const raw = fs.readFileSync(TMP_DATA_FILE, 'utf8');
@@ -153,45 +132,10 @@ async function saveStatus(data) {
 
   inMemoryStatus = updated;
 
-  let storageEngineName = 'Local Memory / Disk';
+  let storageEngineName = 'Local Disk / Memory';
+  let cloudSuccess = false;
 
-  // 1. Vercel Global Config Write via REST API (if VERCEL_API_TOKEN is provided)
-  const gcInfo = getGlobalConfigInfo();
-  const vercelApiToken = process.env.VERCEL_API_TOKEN || process.env.VERCEL_TOKEN || process.env.VERCEL_AUTH_TOKEN;
-  if (gcInfo && gcInfo.id && vercelApiToken) {
-    try {
-      const teamParam = process.env.VERCEL_TEAM_ID ? `?teamId=${process.env.VERCEL_TEAM_ID}` : '';
-      const res = await fetch(`https://api.vercel.com/v1/global-config/${gcInfo.id}/items${teamParam}`, {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${vercelApiToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          items: [
-            {
-              operation: 'upsert',
-              key: 'status',
-              value: updated
-            }
-          ]
-        }),
-        signal: AbortSignal.timeout(4500)
-      });
-      if (res.ok) {
-        storageEngineName = 'Vercel Global Config (Cloud Edge Synced)';
-      } else {
-        const errText = await res.text();
-        console.warn('[Global Config] Write API response:', errText);
-      }
-    } catch (err) {
-      console.warn('[Global Config] Write error:', err.message);
-    }
-  } else if (gcInfo) {
-    storageEngineName = 'Global Config (Read Enabled)';
-  }
-
-  // 2. Cloud KV Storage write if configured
+  // 1. Cloud KV Storage write (Upstash Redis / Vercel KV)
   const kv = getKVCredentials();
   if (kv) {
     try {
@@ -205,10 +149,25 @@ async function saveStatus(data) {
         signal: AbortSignal.timeout(4000)
       });
       if (res.ok) {
-        storageEngineName = 'Vercel KV / Upstash (Cloud Synced)';
+        storageEngineName = 'Upstash Redis / Vercel KV (Cloud Synced)';
+        cloudSuccess = true;
       }
     } catch (err) {
       console.warn('[Storage] KV write error:', err.message);
+    }
+  }
+
+  // 2. Vercel Blob write
+  if (process.env.BLOB_READ_WRITE_TOKEN && vercelBlobSdk) {
+    try {
+      await vercelBlobSdk.put('status.json', JSON.stringify(updated, null, 2), {
+        access: 'public',
+        addRandomSuffix: false
+      });
+      storageEngineName = 'Vercel Blob (Cloud Synced)';
+      cloudSuccess = true;
+    } catch (err) {
+      console.warn('[Storage] Blob write error:', err.message);
     }
   }
 
@@ -232,7 +191,9 @@ async function saveStatus(data) {
   return {
     ...updated,
     _storageMeta: {
-      engine: storageEngineName
+      engine: storageEngineName,
+      isCloudSynced: cloudSuccess || !process.env.VERCEL,
+      warning: process.env.VERCEL && !cloudSuccess ? 'Running on Vercel without persistent cloud storage (Upstash Redis / KV / Blob). Changes will reset when Lambdas recycle.' : null
     }
   };
 }
@@ -306,14 +267,12 @@ app.get('/api/events', async (req, res) => {
 // Storage engine status diagnostic endpoint
 app.get('/api/info', (req, res) => {
   const kv = getKVCredentials();
-  const gcInfo = getGlobalConfigInfo();
-  const hasVercelToken = !!(process.env.VERCEL_API_TOKEN || process.env.VERCEL_TOKEN || process.env.VERCEL_AUTH_TOKEN);
+  const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 
   res.json({
-    globalConfigConfigured: !!gcInfo,
-    globalConfigId: gcInfo ? gcInfo.id : null,
-    globalConfigWriteEnabled: !!(gcInfo && hasVercelToken),
     cloudKVConfigured: !!kv,
+    blobConfigured: hasBlob,
+    isCloudReady: !!(kv || hasBlob || !process.env.VERCEL),
     isVercel: !!process.env.VERCEL,
     nodeEnv: process.env.NODE_ENV || 'development',
     serverTime: new Date().toISOString()

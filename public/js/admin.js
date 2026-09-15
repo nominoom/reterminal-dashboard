@@ -93,20 +93,16 @@ async function checkServerInfo() {
             const info = await res.json();
             const badge = document.getElementById('serverStorageBadge');
             if (badge) {
-                if (info.globalConfigConfigured) {
-                    if (info.globalConfigWriteEnabled) {
-                        badge.innerHTML = '🌐 Global Config (Synced)';
-                        badge.style.color = '#4ade80';
-                    } else {
-                        badge.innerHTML = '🌐 Global Config (Read)';
-                        badge.style.color = '#67e8f9';
-                    }
-                } else if (info.cloudKVConfigured) {
-                    badge.innerHTML = '☁️ Cloud KV Synced';
+                if (info.cloudKVConfigured) {
+                    badge.innerHTML = '⚡ Upstash / KV Synced';
+                    badge.style.color = '#4ade80';
+                } else if (info.blobConfigured) {
+                    badge.innerHTML = '📦 Vercel Blob Synced';
                     badge.style.color = '#4ade80';
                 } else if (info.isVercel) {
-                    badge.innerHTML = '⚡ Vercel Serverless';
-                    badge.style.color = '#60a5fa';
+                    badge.innerHTML = '⚠️ Storage Not Connected';
+                    badge.style.color = '#f59e0b';
+                    badge.title = 'Add Upstash Redis or KV in Vercel Storage to enable persistent saving';
                 } else {
                     badge.innerHTML = '💾 Local Disk Mode';
                     badge.style.color = '#a78bfa';
@@ -219,7 +215,11 @@ async function saveForm(isPreset = false, toastMessage = 'Display updated!') {
         });
         const result = await res.json();
         if (result.success) {
-            showToast(toastMessage);
+            if (result.data?._storageMeta?.warning) {
+                showToast('Saved temporarily (Connect Upstash KV in Vercel Storage for permanent sync)', true);
+            } else {
+                showToast(toastMessage);
+            }
             // Refresh preview frame
             const iframe = document.getElementById('previewIframe');
             if (iframe && iframe.contentWindow) {
