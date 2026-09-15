@@ -1,9 +1,10 @@
 /* ==========================================================================
    reTerminal 1001 / E-Ink 800x480 Monochrome Stylesheet
    Pixel-perfect high-contrast design optimized for crisp e-paper readability
+   Supports multiple layout templates & visual customization themes
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Cinzel:wght@700;900&display=swap');
 
 * {
     box-sizing: border-box;
@@ -26,7 +27,7 @@ html, body {
     align-items: center;
 }
 
-/* Base 800x480 display container per user visual specification */
+/* Base 800x480 display container per reTerminal hardware specs */
 .dashboard {
     width: 800px;
     height: 480px;
@@ -43,11 +44,26 @@ html, body {
     user-select: none;
 }
 
-/* Header */
+/* ==========================================================================
+   FONT FAMILIES
+   ========================================================================== */
+.dashboard.font-sans {
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.dashboard.font-mono {
+    font-family: 'JetBrains Mono', monospace;
+}
+.dashboard.font-serif {
+    font-family: 'Cinzel', serif, Georgia;
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
 header {
     font-size: 28px;
     font-weight: 800;
-    padding: 16px 25px;
+    padding: 14px 24px;
     border-bottom: 4px solid #000000;
     display: flex;
     justify-content: space-between;
@@ -61,11 +77,21 @@ header {
     gap: 12px;
 }
 
+.header-nameplate {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding-right: 12px;
+    border-right: 3px solid #000000;
+    display: none;
+}
+
 .status-badge-tag {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-size: 16px;
+    font-size: 15px;
     font-family: 'JetBrains Mono', monospace;
     font-weight: 800;
     text-transform: uppercase;
@@ -76,16 +102,10 @@ header {
     color: #ffffff;
 }
 
-.header-title {
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-}
-
 .header-right {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
     font-family: 'JetBrains Mono', monospace;
 }
 
@@ -103,7 +123,9 @@ header {
     padding-left: 12px;
 }
 
-/* Main Display Area */
+/* ==========================================================================
+   MAIN CONTENT AREA
+   ========================================================================== */
 main {
     flex: 1;
     display: flex;
@@ -135,9 +157,8 @@ main h1 {
     max-width: 740px;
 }
 
-/* Sub-p for next available time per user visual specification */
-main p {
-    font-size: 30px;
+main p#nextTime {
+    font-size: 28px;
     font-weight: 700;
     margin-top: 14px;
     line-height: 1.2;
@@ -148,91 +169,90 @@ main p {
     padding: 4px 16px;
     background: #000000;
     color: #ffffff;
-    border: 2px solid #000000;
     font-family: 'JetBrains Mono', monospace;
     font-weight: 800;
+    font-size: 26px;
+    margin-left: 6px;
     letter-spacing: 0.5px;
 }
 
 .custom-subnote {
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 600;
-    margin-top: 10px;
-    max-width: 700px;
+    margin-top: 14px;
+    padding: 6px 18px;
+    border: 2px dashed #000000;
+    background: #f4f4f4;
+    max-width: 680px;
+    word-break: break-word;
     line-height: 1.3;
-    opacity: 0.9;
 }
 
-/* Footer per user visual specification */
+/* ==========================================================================
+   FOOTER
+   ========================================================================== */
 footer {
+    padding: 12px 24px;
     border-top: 4px solid #000000;
-    padding: 12px 25px;
-    font-size: 22px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: #ffffff;
-    min-height: 80px;
+    height: 84px;
 }
 
 .footer-left {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    flex: 1;
+    align-items: flex-start;
+    gap: 3px;
 }
 
 .footer-link-group {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .footer-domain {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
     letter-spacing: -0.5px;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-    text-decoration-thickness: 3px;
-    color: #000000;
 }
 
 .footer-subtext {
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    opacity: 0.85;
+    letter-spacing: 1px;
 }
 
 .footer-right {
     display: flex;
     align-items: center;
-    gap: 14px;
 }
 
 .qr-wrapper {
-    width: 68px;
-    height: 68px;
-    border: 2px solid #000000;
-    padding: 3px;
+    width: 62px;
+    height: 62px;
     background: #ffffff;
+    border: 2px solid #000000;
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
+    padding: 2px;
 }
 
-.qr-wrapper canvas {
-    display: block;
+.qr-wrapper canvas,
+.qr-wrapper img {
     width: 100% !important;
     height: 100% !important;
     image-rendering: pixelated;
 }
 
 /* ==========================================================================
-   Inverted Theme Mode (High-contrast Dark)
+   THEME: INVERTED (DARK E-INK)
    ========================================================================== */
 .dashboard.theme-inverted {
     background-color: #000000;
@@ -241,7 +261,8 @@ footer {
 }
 
 .dashboard.theme-inverted header {
-    background: #000000;
+    background-color: #000000;
+    color: #ffffff;
     border-bottom-color: #ffffff;
 }
 
@@ -255,39 +276,238 @@ footer {
     border-left-color: #ffffff;
 }
 
+.dashboard.theme-inverted .header-nameplate {
+    border-right-color: #ffffff;
+}
+
 .dashboard.theme-inverted main {
-    background: #000000;
+    background-color: #000000;
+    color: #ffffff;
 }
 
 .dashboard.theme-inverted .next-time-highlight {
     background: #ffffff;
     color: #000000;
+}
+
+.dashboard.theme-inverted .custom-subnote {
     border-color: #ffffff;
-}
-
-.dashboard.theme-inverted footer {
-    background: #000000;
-    border-top-color: #ffffff;
-}
-
-.dashboard.theme-inverted .footer-domain {
+    background: #111111;
     color: #ffffff;
 }
 
+.dashboard.theme-inverted footer {
+    background-color: #000000;
+    color: #ffffff;
+    border-top-color: #ffffff;
+}
+
 .dashboard.theme-inverted .qr-wrapper {
+    background: #ffffff;
     border-color: #ffffff;
-    background: #ffffff;
 }
 
-/* Sync indicator dot */
-.sync-indicator {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+/* ==========================================================================
+   THEME: RETRO DOTTED BORDER
+   ========================================================================== */
+.dashboard.theme-retro {
+    border: 6px double #000000;
+}
+.dashboard.theme-retro header {
+    border-bottom: 3px dashed #000000;
+}
+.dashboard.theme-retro footer {
+    border-top: 3px dashed #000000;
+}
+
+/* ==========================================================================
+   LAYOUT 2: MINIMAL FOCUS (ZEN)
+   ========================================================================== */
+.dashboard.layout-minimal header {
+    border-bottom: none;
+    padding: 20px 30px 0 30px;
+}
+.dashboard.layout-minimal .status-badge-tag {
+    border: none;
+    background: transparent;
+    color: #000000;
+    font-size: 14px;
+    letter-spacing: 2px;
+    padding: 0;
+}
+.dashboard.layout-minimal.theme-inverted .status-badge-tag {
+    color: #ffffff;
+}
+.dashboard.layout-minimal main {
+    padding: 20px 40px;
+}
+.dashboard.layout-minimal main h1 {
+    font-size: 88px;
+    font-weight: 800;
+    letter-spacing: -2px;
+}
+.dashboard.layout-minimal footer {
+    border-top: none;
+    padding: 0 30px 20px 30px;
+}
+.dashboard.layout-minimal .qr-wrapper {
+    border: none;
+}
+
+/* ==========================================================================
+   LAYOUT 3: SPLIT CARD / TWO-COLUMN GRID
+   ========================================================================== */
+.dashboard.layout-split {
+    display: flex;
+    flex-direction: column;
+}
+.dashboard.layout-split main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 20px;
+    padding: 24px;
+    text-align: left;
+    align-items: stretch;
+}
+.dashboard.layout-split .main-status-wrap {
+    align-items: flex-start;
+    justify-content: center;
+    border-right: 4px solid #000000;
+    padding-right: 20px;
+}
+.dashboard.layout-split.theme-inverted .main-status-wrap {
+    border-right-color: #ffffff;
+}
+.dashboard.layout-split main h1 {
+    font-size: 58px;
+    text-align: left;
+    max-width: 100%;
+    line-height: 1.1;
+}
+.dashboard.layout-split main p#nextTime {
+    font-size: 22px;
+    margin-top: 12px;
+}
+.dashboard.layout-split .next-time-highlight {
+    font-size: 20px;
+    padding: 2px 10px;
+}
+.dashboard.layout-split .custom-subnote {
+    font-size: 16px;
+    margin-top: 12px;
+    text-align: left;
+    max-width: 100%;
+}
+.dashboard.layout-split .split-right-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+.dashboard.layout-split .split-qr-box {
+    width: 100px;
+    height: 100px;
+    border: 3px solid #000000;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+}
+.dashboard.layout-split.theme-inverted .split-qr-box {
+    border-color: #ffffff;
+}
+.dashboard.layout-split footer {
+    display: none;
+}
+
+/* ==========================================================================
+   LAYOUT 4: TERMINAL ASCII DEV MODE
+   ========================================================================== */
+.dashboard.layout-terminal {
+    font-family: 'JetBrains Mono', monospace;
+    border: 4px solid #000000;
+}
+.dashboard.layout-terminal header {
+    padding: 10px 20px;
+    font-size: 18px;
     background: #000000;
-    display: inline-block;
+    color: #ffffff;
+    border-bottom: 3px solid #000000;
+}
+.dashboard.layout-terminal .status-badge-tag {
+    background: #ffffff;
+    color: #000000;
+    border: none;
+}
+.dashboard.layout-terminal.theme-inverted header {
+    background: #ffffff;
+    color: #000000;
+}
+.dashboard.layout-terminal.theme-inverted .status-badge-tag {
+    background: #000000;
+    color: #ffffff;
+}
+.dashboard.layout-terminal main h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 64px;
+    letter-spacing: -1px;
+}
+.dashboard.layout-terminal main h1::before {
+    content: '> ';
+    opacity: 0.6;
+}
+.dashboard.layout-terminal .custom-subnote {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    border: 2px solid #000000;
+    background: transparent;
+}
+.dashboard.layout-terminal footer {
+    font-family: 'JetBrains Mono', monospace;
+    height: 70px;
+    border-top: 3px solid #000000;
 }
 
-.dashboard.theme-inverted .sync-indicator {
+/* ==========================================================================
+   LAYOUT 5: DESKPLATE / OFFICE NAMEPLATE
+   ========================================================================== */
+.dashboard.layout-deskplate header {
+    background: #000000;
+    color: #ffffff;
+    padding: 12px 24px;
+}
+.dashboard.layout-deskplate .header-nameplate {
+    display: block !important;
+    border-right-color: #ffffff;
+}
+.dashboard.layout-deskplate .status-badge-tag {
     background: #ffffff;
+    color: #000000;
+    border: none;
+}
+.dashboard.layout-deskplate.theme-inverted header {
+    background: #ffffff;
+    color: #000000;
+}
+.dashboard.layout-deskplate.theme-inverted .header-nameplate {
+    border-right-color: #000000;
+}
+.dashboard.layout-deskplate.theme-inverted .status-badge-tag {
+    background: #000000;
+    color: #ffffff;
+}
+.dashboard.layout-deskplate main {
+    padding: 20px;
+}
+.dashboard.layout-deskplate .main-status-wrap {
+    border: 4px solid #000000;
+    padding: 24px 20px;
+    background: #ffffff;
+}
+.dashboard.layout-deskplate.theme-inverted .main-status-wrap {
+    border-color: #ffffff;
+    background: #000000;
 }

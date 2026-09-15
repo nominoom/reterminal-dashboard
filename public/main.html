@@ -8,18 +8,19 @@
     <script src="/js/qrcode.min.js"></script>
 </head>
 <body>
-    <div class="dashboard" id="dashboard">
-        <header>
+    <div class="dashboard layout-executive font-sans" id="dashboard">
+        <header id="header">
             <div class="header-left">
+                <span class="header-nameplate" id="headerNameplate">NOMINOOM</span>
                 <span class="status-badge-tag" id="statusBadge">OPEN FOR QUESTIONS</span>
             </div>
-            <div class="header-right">
+            <div class="header-right" id="headerClockGroup">
                 <div class="clock-display" id="clockDisplay">--:-- --</div>
                 <div class="date-display" id="dateDisplay">---, --- --</div>
             </div>
         </header>
 
-        <main>
+        <main id="mainContainer">
             <div class="main-status-wrap">
                 <h1 id="mainStatus">AVAILABLE</h1>
                 <p id="nextTime">
@@ -28,6 +29,13 @@
                 <div class="custom-subnote" id="customSubnote">
                     Feel free to say hi or drop in
                 </div>
+            </div>
+
+            <!-- Split Layout Right Column -->
+            <div class="split-right-panel" id="splitRightPanel" style="display: none;">
+                <div class="split-qr-box" id="splitQrcode"></div>
+                <div class="footer-domain" id="splitDomain" style="font-size: 16px;">nominoom.com</div>
+                <div class="clock-display" id="splitClock" style="font-size: 32px;">--:--</div>
             </div>
         </main>
 

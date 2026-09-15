@@ -1,10 +1,12 @@
 /**
  * reTerminal 1001 E-Ink Display Client Controller
  * Optimized for Vercel Serverless deployments and local standalone execution.
- * Includes smart polling, SSE listener, offline cache recovery, and flicker-free DOM updates.
+ * Includes smart polling, SSE listener, offline cache recovery, flicker-free DOM updates,
+ * and multi-template layout switching (Executive, Minimal, Split Grid, Terminal, Deskplate).
  */
 
 let qrCodeInstance = null;
+let splitQrCodeInstance = null;
 let currentConfig = null;
 let lastRenderedHash = '';
 
@@ -22,6 +24,10 @@ function computeDataHash(data) {
         data.linkSubtitle,
         data.showQr,
         data.theme,
+        data.layoutTemplate,
+        data.fontFamily,
+        data.headerNameplate,
+        data.showHeaderClock,
         data.showFooter,
         data.timezone,
         data.clockFormat,
@@ -33,11 +39,12 @@ function initClock() {
     function updateClock() {
         const now = new Date();
         const timeEl = document.getElementById('clockDisplay');
+        const splitTimeEl = document.getElementById('splitClock');
         const dateEl = document.getElementById('dateDisplay');
         const tz = (currentConfig && currentConfig.timezone) || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
         const is24h = currentConfig && currentConfig.clockFormat === '24h';
 
-        if (timeEl) {
+        if (timeEl || splitTimeEl) {
             try {
                 const timeFormatter = new Intl.DateTimeFormat('en-US', {
                     timeZone: tz,
@@ -45,14 +52,18 @@ function initClock() {
                     minute: '2-digit',
                     hour12: !is24h
                 });
-                timeEl.textContent = timeFormatter.format(now);
+                const formattedTime = timeFormatter.format(now);
+                if (timeEl) timeEl.textContent = formattedTime;
+                if (splitTimeEl) splitTimeEl.textContent = formattedTime;
             } catch (e) {
                 let hours = now.getHours();
                 const minutes = String(now.getMinutes()).padStart(2, '0');
                 const ampm = hours >= 12 ? 'PM' : 'AM';
                 hours = hours % 12;
                 hours = hours ? hours : 12;
-                timeEl.textContent = `${hours}:${minutes} ${ampm}`;
+                const formattedTime = `${hours}:${minutes} ${ampm}`;
+                if (timeEl) timeEl.textContent = formattedTime;
+                if (splitTimeEl) splitTimeEl.textContent = formattedTime;
             }
         }
 
@@ -94,58 +105,99 @@ function updateUI(data) {
     // Cache locally
     try {
         localStorage.setItem('reterminal_cached_status', JSON.stringify(data));
-    } catch (e) {
-        // LocalStorage quota or privacy mode
-    }
+    } catch (e) {}
 
     const dashboard = document.getElementById('dashboard');
     const statusText = document.getElementById('mainStatus');
     const badgeText = document.getElementById('statusBadge');
+    const nameplateText = document.getElementById('headerNameplate');
+    const clockGroup = document.getElementById('headerClockGroup');
     const nextTimeHighlight = document.getElementById('nextTimeHighlight');
     const customSubnote = document.getElementById('customSubnote');
     const footerDomain = document.getElementById('footerDomain');
+    const splitDomain = document.getElementById('splitDomain');
     const footerSubtext = document.getElementById('footerSubtext');
     const qrContainer = document.getElementById('qrcode');
+    const splitQrContainer = document.getElementById('splitQrcode');
+    const splitRightPanel = document.getElementById('splitRightPanel');
     const footerElement = document.getElementById('footer');
 
-    // 1. Theme Inversion
+    // 1. Layout Template & Font & Theme Classes on Dashboard container
     if (dashboard) {
+        // Reset dynamic classes
+        dashboard.className = 'dashboard';
+
+        // Layout template class
+        const layout = data.layoutTemplate || 'executive';
+        dashboard.classList.add(`layout-${layout}`);
+
+        // Font family
+        const font = data.fontFamily || 'sans';
+        dashboard.classList.add(`font-${font}`);
+
+        // Theme
         if (data.theme === 'inverted') {
             dashboard.classList.add('theme-inverted');
-        } else {
-            dashboard.classList.remove('theme-inverted');
+        } else if (data.theme === 'retro') {
+            dashboard.classList.add('theme-retro');
+        }
+
+        // Show/hide split panel based on layout
+        if (splitRightPanel) {
+            splitRightPanel.style.display = layout === 'split' ? 'flex' : 'none';
         }
     }
 
-    // 2. Main Status Text
+    // 2. Header Nameplate
+    if (nameplateText) {
+        if (data.headerNameplate && data.headerNameplate.trim()) {
+            nameplateText.textContent = data.headerNameplate.trim().toUpperCase();
+            nameplateText.style.display = 'inline-block';
+        } else {
+            nameplateText.style.display = 'none';
+        }
+    }
+
+    // 3. Header Clock Group Visibility
+    if (clockGroup) {
+        clockGroup.style.display = data.showHeaderClock !== false ? 'flex' : 'none';
+    }
+
+    // 4. Main Status Text
     if (statusText) {
         const text = data.status || 'AVAILABLE';
         statusText.textContent = text;
         
         // Dynamically scale font size if text is long
         const len = text.length;
-        if (len > 18) {
-            statusText.style.fontSize = '46px';
-        } else if (len > 13) {
-            statusText.style.fontSize = '58px';
-        } else if (len > 10) {
-            statusText.style.fontSize = '68px';
+        if (data.layoutTemplate === 'minimal') {
+            statusText.style.fontSize = len > 15 ? '56px' : len > 10 ? '72px' : '88px';
+        } else if (data.layoutTemplate === 'split') {
+            statusText.style.fontSize = len > 15 ? '40px' : len > 10 ? '50px' : '58px';
         } else {
-            statusText.style.fontSize = '78px';
+            if (len > 18) {
+                statusText.style.fontSize = '46px';
+            } else if (len > 13) {
+                statusText.style.fontSize = '58px';
+            } else if (len > 10) {
+                statusText.style.fontSize = '68px';
+            } else {
+                statusText.style.fontSize = '78px';
+            }
         }
     }
 
-    // 3. Status Badge Tag
+    // 5. Status Badge Tag
     if (badgeText) {
         badgeText.textContent = data.statusBadge || 'OPEN FOR QUESTIONS';
     }
 
-    // 4. Next Available Time
+    // 6. Next Available Time
     if (nextTimeHighlight) {
         nextTimeHighlight.textContent = data.nextAvailableTime || 'Now';
     }
 
-    // 5. Custom Note / Context
+    // 7. Custom Note / Context
     if (customSubnote) {
         const note = data.availabilityNote || data.customNote;
         if (note && note.trim().length > 0) {
@@ -156,23 +208,28 @@ function updateUI(data) {
         }
     }
 
-    // 6. Footer Link & Subtitle
+    // 8. Footer Link & Subtitle
     if (footerDomain) {
         footerDomain.textContent = data.linkText || 'nominoom.com';
+    }
+    if (splitDomain) {
+        splitDomain.textContent = data.linkText || 'nominoom.com';
     }
     if (footerSubtext) {
         footerSubtext.textContent = data.linkSubtitle || 'Scan QR for portfolio & projects';
     }
 
-    // 7. Footer Visibility
+    // 9. Footer Visibility
     if (footerElement) {
-        footerElement.style.display = data.showFooter !== false ? 'flex' : 'none';
+        footerElement.style.display = (data.showFooter !== false && data.layoutTemplate !== 'split') ? 'flex' : 'none';
     }
 
-    // 8. QR Code Generation
+    // 10. QR Code Generation (Standard Footer & Split Panel)
+    const targetUrl = data.linkUrl || 'https://nominoom.com';
+    const showQr = data.showQr !== false;
+
     if (qrContainer && typeof QRCode !== 'undefined') {
-        const targetUrl = data.linkUrl || 'https://nominoom.com';
-        if (data.showQr !== false) {
+        if (showQr) {
             qrContainer.style.display = 'flex';
             if (!qrCodeInstance) {
                 qrCodeInstance = new QRCode(qrContainer, {
@@ -188,6 +245,24 @@ function updateUI(data) {
             }
         } else {
             qrContainer.style.display = 'none';
+        }
+    }
+
+    if (splitQrContainer && typeof QRCode !== 'undefined') {
+        if (showQr && data.layoutTemplate === 'split') {
+            splitQrContainer.style.display = 'flex';
+            if (!splitQrCodeInstance) {
+                splitQrCodeInstance = new QRCode(splitQrContainer, {
+                    text: targetUrl,
+                    width: 90,
+                    height: 90,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            } else {
+                splitQrCodeInstance.makeCode(targetUrl);
+            }
         }
     }
 }
@@ -219,18 +294,9 @@ function setupSSE() {
             try {
                 const data = JSON.parse(event.data);
                 updateUI(data);
-            } catch (err) {
-                // Parse error
-            }
+            } catch (err) {}
         };
-
-        evtSource.onerror = function () {
-            // In serverless environments (Vercel), SSE streams close naturally.
-            // Our active poller guarantees real-time freshness seamlessly.
-        };
-    } catch (e) {
-        // SSE not supported or blocked
-    }
+    } catch (e) {}
 }
 
 // Restore cached configuration immediately on load to prevent blank flash
@@ -251,6 +317,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupSSE();
     fetchStatus();
 
-    // Continuous smart polling every 3 seconds for 100% reliable Vercel serverless syncing
+    // Continuous smart polling every 3 seconds
     setInterval(fetchStatus, 3000);
 });

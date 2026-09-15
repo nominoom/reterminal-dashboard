@@ -1,6 +1,7 @@
 /**
  * reTerminal Admin Panel Controller
- * Handles presets, time math, form submissions, and live preview sync across Vercel & local servers.
+ * Handles visual layout templates, typography, presets, time math, form submissions,
+ * live preview scaling, and mobile-friendly interactions.
  */
 
 // Presets Definition
@@ -10,44 +11,52 @@ const PRESETS = {
         statusBadge: 'OPEN FOR QUESTIONS',
         nextAvailableTime: 'Now',
         availabilityNote: 'Feel free to say hi or drop in',
-        theme: 'standard'
+        theme: 'standard',
+        layoutTemplate: 'executive'
     },
     focus: {
         status: 'DEEP FOCUS',
         statusBadge: 'DO NOT DISTURB',
         nextAvailableTime: getTimeOffset(60), // +1 hour
         availabilityNote: 'In flow state — ping Slack for urgent matters',
-        theme: 'standard'
+        theme: 'standard',
+        layoutTemplate: 'minimal'
     },
     meeting: {
         status: 'IN A MEETING',
         statusBadge: 'BUSY',
         nextAvailableTime: getTimeOffset(30), // +30 mins
         availabilityNote: 'On a client / team sync call',
-        theme: 'standard'
+        theme: 'standard',
+        layoutTemplate: 'split'
     },
     break: {
         status: 'ON LUNCH',
         statusBadge: 'STEPPED AWAY',
         nextAvailableTime: getTimeOffset(45), // +45 mins
         availabilityNote: 'Grabbing coffee & food — back shortly',
-        theme: 'standard'
+        theme: 'standard',
+        layoutTemplate: 'executive'
     },
     coding: {
         status: 'LIVE CODING',
         statusBadge: 'HEADPHONES ON',
         nextAvailableTime: getTimeOffset(120), // +2 hours
-        availabilityNote: 'Building new features & debugging',
-        theme: 'standard'
+        availabilityNote: 'Building features & debugging',
+        theme: 'standard',
+        layoutTemplate: 'terminal'
     },
     ooo: {
         status: 'OUT OF OFFICE',
         statusBadge: 'OFFLINE',
         nextAvailableTime: 'Tomorrow 9:00 AM',
         availabilityNote: 'Will respond to messages during work hours',
-        theme: 'inverted'
+        theme: 'inverted',
+        layoutTemplate: 'deskplate'
     }
 };
+
+let currentSelectedLayout = 'executive';
 
 // Helper to compute relative time formatted string e.g. "3:45 PM"
 function getTimeOffset(minutesToAdd) {
@@ -125,6 +134,18 @@ async function checkServerInfo() {
     } catch (e) {}
 }
 
+// Select Layout Template
+function selectLayout(layoutName) {
+    currentSelectedLayout = layoutName || 'executive';
+    document.querySelectorAll('.layout-card').forEach(card => {
+        if (card.getAttribute('data-layout') === currentSelectedLayout) {
+            card.classList.add('active');
+        } else {
+            card.classList.remove('active');
+        }
+    });
+}
+
 // Load current configuration into admin form
 async function loadStatus() {
     try {
@@ -135,14 +156,24 @@ async function loadStatus() {
         document.getElementById('inputBadge').value = data.statusBadge || '';
         document.getElementById('inputNextTime').value = data.nextAvailableTime || '';
         document.getElementById('inputNote').value = data.availabilityNote || data.customNote || '';
+        document.getElementById('inputNameplate').value = data.headerNameplate || '';
         document.getElementById('inputLinkUrl').value = data.linkUrl || 'https://nominoom.com';
         document.getElementById('inputLinkText').value = data.linkText || 'nominoom.com';
         document.getElementById('inputLinkSubtitle').value = data.linkSubtitle || 'Scan QR for portfolio & projects';
         
         document.getElementById('toggleQr').checked = data.showQr !== false;
-        document.getElementById('toggleInverted').checked = data.theme === 'inverted';
+        document.getElementById('toggleHeaderClock').checked = data.showHeaderClock !== false;
         document.getElementById('toggleFooter').checked = data.showFooter !== false;
 
+        if (data.layoutTemplate) {
+            selectLayout(data.layoutTemplate);
+        }
+        if (data.fontFamily && document.getElementById('selectFontFamily')) {
+            document.getElementById('selectFontFamily').value = data.fontFamily;
+        }
+        if (data.theme && document.getElementById('selectTheme')) {
+            document.getElementById('selectTheme').value = data.theme;
+        }
         if (data.timezone && document.getElementById('selectTimezone')) {
             document.getElementById('selectTimezone').value = data.timezone;
         }
@@ -165,7 +196,13 @@ function applyPreset(presetKey) {
     document.getElementById('inputBadge').value = p.statusBadge;
     document.getElementById('inputNextTime').value = p.nextAvailableTime;
     document.getElementById('inputNote').value = p.availabilityNote;
-    document.getElementById('toggleInverted').checked = p.theme === 'inverted';
+
+    if (p.theme && document.getElementById('selectTheme')) {
+        document.getElementById('selectTheme').value = p.theme;
+    }
+    if (p.layoutTemplate) {
+        selectLayout(p.layoutTemplate);
+    }
 
     // Auto save immediately for quick 1-tap operation
     saveForm(true, `Applied "${p.status}" Preset`);
@@ -207,10 +244,16 @@ function setQuickTime(type) {
 // Save Form to Server
 async function saveForm(isPreset = false, toastMessage = 'Display updated!') {
     const btn = document.getElementById('btnSave');
+    const mobileBtn = document.getElementById('btnMobileSave');
     const originalText = btn ? btn.innerHTML : '';
+    
     if (btn) {
         btn.disabled = true;
         btn.style.opacity = '0.7';
+    }
+    if (mobileBtn) {
+        mobileBtn.disabled = true;
+        mobileBtn.style.opacity = '0.7';
     }
 
     const payload = {
@@ -219,12 +262,16 @@ async function saveForm(isPreset = false, toastMessage = 'Display updated!') {
         nextAvailableTime: document.getElementById('inputNextTime').value.trim() || 'Now',
         availabilityNote: document.getElementById('inputNote').value.trim(),
         customNote: document.getElementById('inputNote').value.trim(),
+        headerNameplate: document.getElementById('inputNameplate').value.trim(),
         linkUrl: document.getElementById('inputLinkUrl').value.trim() || 'https://nominoom.com',
         linkText: document.getElementById('inputLinkText').value.trim() || 'nominoom.com',
         linkSubtitle: document.getElementById('inputLinkSubtitle').value.trim() || 'Scan QR for portfolio & projects',
         showQr: document.getElementById('toggleQr').checked,
-        theme: document.getElementById('toggleInverted').checked ? 'inverted' : 'standard',
+        showHeaderClock: document.getElementById('toggleHeaderClock').checked,
         showFooter: document.getElementById('toggleFooter').checked,
+        layoutTemplate: currentSelectedLayout || 'executive',
+        fontFamily: document.getElementById('selectFontFamily')?.value || 'sans',
+        theme: document.getElementById('selectTheme')?.value || 'standard',
         timezone: document.getElementById('selectTimezone')?.value || 'America/New_York',
         clockFormat: document.getElementById('selectClockFormat')?.value || '12h'
     };
@@ -259,6 +306,10 @@ async function saveForm(isPreset = false, toastMessage = 'Display updated!') {
             btn.style.opacity = '1';
             btn.innerHTML = originalText;
         }
+        if (mobileBtn) {
+            mobileBtn.disabled = false;
+            mobileBtn.style.opacity = '1';
+        }
     }
 }
 
@@ -274,6 +325,33 @@ document.addEventListener('DOMContentLoaded', () => {
             saveForm(false, 'Display updated live!');
         });
     }
+
+    // Mobile Action Bar Buttons
+    const btnMobileSave = document.getElementById('btnMobileSave');
+    if (btnMobileSave) {
+        btnMobileSave.addEventListener('click', () => {
+            saveForm(false, 'Display updated live!');
+        });
+    }
+
+    const btnMobilePreview = document.getElementById('btnMobilePreview');
+    if (btnMobilePreview) {
+        btnMobilePreview.addEventListener('click', () => {
+            const preview = document.getElementById('previewColumn');
+            if (preview) {
+                preview.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    }
+
+    // Layout Card Clicks
+    document.querySelectorAll('.layout-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const layout = card.getAttribute('data-layout');
+            selectLayout(layout);
+            saveForm(false, `Switched to "${layout.toUpperCase()}" Layout`);
+        });
+    });
 
     // Preset button event listeners
     document.querySelectorAll('.btn-preset').forEach(btn => {
@@ -292,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Toggle and select listeners for instant response
-    ['toggleQr', 'toggleInverted', 'toggleFooter', 'selectTimezone', 'selectClockFormat'].forEach(id => {
+    ['toggleQr', 'toggleHeaderClock', 'toggleFooter', 'selectFontFamily', 'selectTheme', 'selectTimezone', 'selectClockFormat'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', () => {
@@ -302,5 +380,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Initial scale calculation
-    setTimeout(adjustPreviewScale, 100);
+    setTimeout(adjustPreviewScale, 150);
 });
