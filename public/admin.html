@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>reTerminal Status Dashboard — Admin Controller</title>
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Top App Header -->
+        <header class="admin-header">
+            <div class="brand-section">
+                <div class="brand-icon">📟</div>
+                <div class="brand-info">
+                    <h1>reTerminal Controller</h1>
+                    <p>800×480 E-Ink Status & Availability Manager</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <a href="/main" target="_blank" class="link-btn">
+                    <span>🖥️ Open /main Screen</span>
+                    <span>↗</span>
+                </a>
+            </div>
+        </header>
+
+        <div class="admin-grid">
+            <!-- Left Column: Controls & Presets -->
+            <div class="controls-column" style="display: flex; flex-direction: column; gap: 20px;">
+                <!-- 1-Tap Quick Status Presets -->
+                <div class="card">
+                    <div class="card-title">⚡ 1-Tap Status Presets</div>
+                    <div class="preset-grid">
+                        <button type="button" class="btn-preset" data-preset="available">
+                            <span class="preset-icon">🟢</span>
+                            <span class="preset-label">Available</span>
+                            <span class="preset-desc">Open for drop-ins</span>
+                        </button>
+                        <button type="button" class="btn-preset" data-preset="focus">
+                            <span class="preset-icon">🧠</span>
+                            <span class="preset-label">Deep Focus</span>
+                            <span class="preset-desc">Do not disturb</span>
+                        </button>
+                        <button type="button" class="btn-preset" data-preset="meeting">
+                            <span class="preset-icon">📅</span>
+                            <span class="preset-label">In Meeting</span>
+                            <span class="preset-desc">On call (+30m)</span>
+                        </button>
+                        <button type="button" class="btn-preset" data-preset="break">
+                            <span class="preset-icon">☕</span>
+                            <span class="preset-label">On Break</span>
+                            <span class="preset-desc">Lunch / Coffee</span>
+                        </button>
+                        <button type="button" class="btn-preset" data-preset="coding">
+                            <span class="preset-icon">💻</span>
+                            <span class="preset-label">Coding</span>
+                            <span class="preset-desc">In the zone</span>
+                        </button>
+                        <button type="button" class="btn-preset" data-preset="ooo">
+                            <span class="preset-icon">🏃</span>
+                            <span class="preset-label">Out of Office</span>
+                            <span class="preset-desc">Back tomorrow</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Custom Status Form -->
+                <form id="statusForm" class="card">
+                    <div class="card-title">✏️ Status & Time Configuration</div>
+
+                    <div class="row-2">
+                        <div class="form-group">
+                            <label for="inputStatus">Main Status Text (Big)</label>
+                            <input type="text" id="inputStatus" class="input-field" placeholder="e.g. AVAILABLE, DEEP FOCUS" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="inputBadge">Header Badge Tag</label>
+                            <input type="text" id="inputBadge" class="input-field input-mono" placeholder="e.g. OPEN FOR QUESTIONS" required>
+                        </div>
+                    </div>
+
+                    <!-- Quick Time Picker -->
+                    <div class="form-group">
+                        <label for="inputNextTime">Next Available Time</label>
+                        <input type="text" id="inputNextTime" class="input-field input-mono" placeholder="e.g. Now, 3:30 PM, Tomorrow 9:00 AM" required>
+                        
+                        <div class="chips-row" style="margin-top: 6px;">
+                            <button type="button" class="chip-btn" data-time="now">Now</button>
+                            <button type="button" class="chip-btn" data-time="15m">+15m</button>
+                            <button type="button" class="chip-btn" data-time="30m">+30m</button>
+                            <button type="button" class="chip-btn" data-time="45m">+45m</button>
+                            <button type="button" class="chip-btn" data-time="1h">+1 Hour</button>
+                            <button type="button" class="chip-btn" data-time="2h">+2 Hours</button>
+                            <button type="button" class="chip-btn" data-time="eod">5:00 PM</button>
+                            <button type="button" class="chip-btn" data-time="tomorrow">Tomorrow 9 AM</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="inputNote">Availability Sub-note / Context (Optional)</label>
+                        <input type="text" id="inputNote" class="input-field" placeholder="e.g. Feel free to say hi or drop in / Slack for urgent requests">
+                    </div>
+
+                    <div class="card-title" style="margin-top: 10px;">🌐 Link & QR Code Settings</div>
+
+                    <div class="form-group">
+                        <label for="inputLinkUrl">Destination URL</label>
+                        <input type="url" id="inputLinkUrl" class="input-field input-mono" placeholder="https://nominoom.com" value="https://nominoom.com">
+                    </div>
+
+                    <div class="row-2">
+                        <div class="form-group">
+                            <label for="inputLinkText">Display Link Name</label>
+                            <input type="text" id="inputLinkText" class="input-field input-mono" placeholder="nominoom.com" value="nominoom.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="inputLinkSubtitle">Link Subtitle</label>
+                            <input type="text" id="inputLinkSubtitle" class="input-field" placeholder="Scan QR for portfolio & projects" value="Scan QR for portfolio & projects">
+                        </div>
+                    </div>
+
+                    <div class="card-title" style="margin-top: 10px;">⚙️ Display Options</div>
+
+                    <div class="toggle-group">
+                        <div class="toggle-info">
+                            <h4>Show QR Code</h4>
+                            <p>Display high-contrast scannable QR code on the e-ink screen</p>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggleQr" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-group">
+                        <div class="toggle-info">
+                            <h4>Inverted Theme (Dark E-Ink)</h4>
+                            <p>High contrast white text on solid black background</p>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggleInverted">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-group">
+                        <div class="toggle-info">
+                            <h4>Show Footer Bar</h4>
+                            <p>Include nominoom.com link and QR code in bottom panel</p>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggleFooter" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn-save-main" id="btnSave">
+                        <span>💾 Update reTerminal Display</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Right Column: Live Simulator & reTerminal Screen Mirror -->
+            <div class="preview-column">
+                <div class="preview-container">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div class="card-title" style="margin-bottom: 0;">📟 Live E-Ink Preview</div>
+                            <span class="device-badge">800 × 480 px</span>
+                        </div>
+                        
+                        <div class="preview-wrapper" id="previewWrapper">
+                            <iframe src="/main" class="preview-iframe" id="previewIframe" title="reTerminal Preview"></iframe>
+                        </div>
+
+                        <div style="font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+                            💡 <strong>Tip:</strong> Keep <code>http://localhost:3000/main</code> open in full-screen on your reTerminal. Updates made here will sync instantly via live Server-Sent Events.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast-msg" id="toast">✓ Display updated live!</div>
+
+    <script src="/js/admin.js"></script>
+</body>
+</html>

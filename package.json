@@ -1,0 +1,14 @@
+{
+  "name": "reterminal-dashboard",
+  "version": "1.0.0",
+  "description": "800x480 E-Ink Status Dashboard & Admin Panel for Seeed reTerminal",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
+  }
+}

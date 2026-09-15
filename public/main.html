@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=800, height=480, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>reTerminal E-Ink Display</title>
+    <link rel="stylesheet" href="/css/eink.css">
+    <script src="/js/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="dashboard" id="dashboard">
+        <header>
+            <div class="header-left">
+                <span class="status-badge-tag" id="statusBadge">OPEN FOR QUESTIONS</span>
+            </div>
+            <div class="header-right">
+                <div class="clock-display" id="clockDisplay">--:-- --</div>
+                <div class="date-display" id="dateDisplay">---, --- --</div>
+            </div>
+        </header>
+
+        <main>
+            <div class="main-status-wrap">
+                <h1 id="mainStatus">AVAILABLE</h1>
+                <p id="nextTime">
+                    NEXT AVAILABLE: <span class="next-time-highlight" id="nextTimeHighlight">Now</span>
+                </p>
+                <div class="custom-subnote" id="customSubnote">
+                    Feel free to say hi or drop in
+                </div>
+            </div>
+        </main>
+
+        <footer id="footer">
+            <div class="footer-left">
+                <div class="footer-link-group">
+                    <span style="font-size: 20px;">🌐</span>
+                    <span class="footer-domain" id="footerDomain">nominoom.com</span>
+                </div>
+                <span class="footer-subtext" id="footerSubtext">Scan QR for portfolio & projects</span>
+            </div>
+            <div class="footer-right">
+                <div class="qr-wrapper" id="qrcode" title="Scan QR Code"></div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/js/eink.js"></script>
+</body>
+</html>
