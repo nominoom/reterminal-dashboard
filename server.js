@@ -45,13 +45,34 @@ const DEFAULT_STATUS = {
 
 let inMemoryStatus = { ...DEFAULT_STATUS };
 
-// Helper to determine Upstash / KV credentials
+// Helper to determine Upstash / KV credentials (universal prefix scanner)
 function getKVCredentials() {
-  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  // 1. Standard variable names
+  let url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || process.env.REST_API_URL;
+  let token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || process.env.REST_API_TOKEN;
+
   if (url && token) {
     return { url: url.replace(/\/$/, ''), token };
   }
+
+  // 2. Scan all process.env keys for any custom database prefixes created by Vercel
+  // e.g. DATA_READ_DISPLAY_REST_API_URL, RETERMINAL_REST_API_URL, etc.
+  const envKeys = Object.keys(process.env);
+  for (const k of envKeys) {
+    if (k.endsWith('_REST_API_URL') || k.endsWith('_KV_REST_API_URL')) {
+      const prefix = k.replace(/_REST_API_URL$/, '').replace(/_KV_REST_API_URL$/, '');
+      const candidateTokens = [
+        process.env[`${prefix}_REST_API_TOKEN`],
+        process.env[`${prefix}_KV_REST_API_TOKEN`],
+        process.env[`${prefix}_TOKEN`]
+      ].filter(Boolean);
+
+      if (process.env[k] && candidateTokens.length > 0) {
+        return { url: process.env[k].replace(/\/$/, ''), token: candidateTokens[0] };
+      }
+    }
+  }
+
   return null;
 }
 
@@ -270,12 +291,17 @@ app.get('/api/events', async (req, res) => {
 app.get('/api/info', (req, res) => {
   const kv = getKVCredentials();
   const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
+  const storageKeys = Object.keys(process.env).filter(k =>
+    k.includes('KV') || k.includes('REDIS') || k.includes('UPSTASH') ||
+    k.includes('CONFIG') || k.includes('BLOB') || k.includes('STORAGE')
+  );
 
   res.json({
     cloudKVConfigured: !!kv,
     blobConfigured: hasBlob,
     isCloudReady: !!(kv || hasBlob || !process.env.VERCEL),
     isVercel: !!process.env.VERCEL,
+    detectedStorageKeys: storageKeys,
     nodeEnv: process.env.NODE_ENV || 'development',
     serverTime: new Date().toISOString()
   });
