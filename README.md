@@ -33,15 +33,17 @@ The dashboard is configured for zero-friction deployment to Vercel with the incl
 ### 1. Push to GitHub & Import to Vercel
 Simply push this repository to GitHub and link it in the [Vercel Dashboard](https://vercel.com/new).
 
-### 2. (Recommended) Connect Cloud Persistence
-By default in serverless, each function has isolated temporary storage. To make status changes from `/admin` persist globally and instantly sync to your reTerminal display:
+### 2. Connect Global Config Store or Cloud Storage
+To make status changes from `/admin` persist globally and instantly sync to your reTerminal display:
 
-1. In your Vercel project, go to **Storage** -> **Create Database** -> select **KV** (or [Upstash Redis](https://upstash.com/)).
-2. Connect the KV database to your project.
-3. Vercel will automatically set the following environment variables:
-   - `KV_REST_API_URL`
-   - `KV_REST_API_TOKEN`
-   (Or `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`)
+#### Option A: Vercel Global Config Store (`data_read_display`)
+1. In your Vercel project, link your **Global Config Store** (e.g. `data_read_display`).
+2. Vercel will automatically provide the `GLOBAL_CONFIG` connection string.
+3. To allow `/admin` to push updates directly into the Global Config store, generate a Vercel Access Token at [vercel.com/account/tokens](https://vercel.com/account/tokens) and set it in your project's Environment Variables as `VERCEL_API_TOKEN`.
+
+#### Option B: Vercel KV / Upstash Redis
+1. In your Vercel project, go to **Storage** -> **Create Database** -> select **KV** or **Upstash Redis**.
+2. Connect it to your project. Vercel will auto-populate `KV_REST_API_URL` & `KV_REST_API_TOKEN`.
 
 The backend automatically detects these credentials and synchronizes status updates globally across all devices!
 

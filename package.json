@@ -8,7 +8,8 @@
     "dev": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "cors": "^2.8.5"
+    "@vercel/global-config": "^1.5.1",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
   }
 }

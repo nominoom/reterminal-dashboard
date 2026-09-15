@@ -93,7 +93,15 @@ async function checkServerInfo() {
             const info = await res.json();
             const badge = document.getElementById('serverStorageBadge');
             if (badge) {
-                if (info.cloudKVConfigured) {
+                if (info.globalConfigConfigured) {
+                    if (info.globalConfigWriteEnabled) {
+                        badge.innerHTML = '🌐 Global Config (Synced)';
+                        badge.style.color = '#4ade80';
+                    } else {
+                        badge.innerHTML = '🌐 Global Config (Read)';
+                        badge.style.color = '#67e8f9';
+                    }
+                } else if (info.cloudKVConfigured) {
                     badge.innerHTML = '☁️ Cloud KV Synced';
                     badge.style.color = '#4ade80';
                 } else if (info.isVercel) {
