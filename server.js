@@ -5,12 +5,15 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-// Optional SDKs
-let globalConfigSdk = null;
-try { globalConfigSdk = require('@vercel/global-config'); } catch (e) { }
+// Official Redis client for Upstash & Vercel KV
+let Redis = null;
+try {
+  const upstash = require('@upstash/redis');
+  Redis = upstash.Redis;
+} catch (e) {}
 
 let vercelBlobSdk = null;
-try { vercelBlobSdk = require('@vercel/blob'); } catch (e) { }
+try { vercelBlobSdk = require('@vercel/blob'); } catch (e) {}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -44,6 +47,7 @@ const DEFAULT_STATUS = {
 };
 
 let inMemoryStatus = { ...DEFAULT_STATUS };
+let redisClient = null;
 
 // Helper to determine Upstash / KV credentials (universal prefix scanner)
 function getKVCredentials() {
@@ -56,7 +60,6 @@ function getKVCredentials() {
   }
 
   // 2. Scan all process.env keys for any custom database prefixes created by Vercel
-  // e.g. DATA_READ_DISPLAY_REST_API_URL, RETERMINAL_REST_API_URL, etc.
   const envKeys = Object.keys(process.env);
   for (const k of envKeys) {
     if (k.endsWith('_REST_API_URL') || k.endsWith('_KV_REST_API_URL')) {
@@ -76,29 +79,45 @@ function getKVCredentials() {
   return null;
 }
 
+// Get or initialize the Redis client
+function getRedisClient() {
+  if (redisClient) return redisClient;
+  if (!Redis) return null;
+
+  const creds = getKVCredentials();
+  if (creds) {
+    redisClient = new Redis({
+      url: creds.url,
+      token: creds.token
+    });
+    return redisClient;
+  }
+
+  try {
+    redisClient = Redis.fromEnv();
+    return redisClient;
+  } catch (e) {
+    return null;
+  }
+}
+
 // In-memory clients list for Server-Sent Events (SSE)
 let sseClients = [];
 
 // Helper to load status across multiple storage tiers
 async function getStatus() {
-  // Tier 1: Cloud KV (Upstash Redis / Vercel KV)
-  const kv = getKVCredentials();
-  if (kv) {
+  // Tier 1: Cloud KV via Official @upstash/redis SDK
+  const client = getRedisClient();
+  if (client) {
     try {
-      const res = await fetch(`${kv.url}/get/reterminal_status`, {
-        headers: { Authorization: `Bearer ${kv.token}` },
-        signal: AbortSignal.timeout(3000)
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json && json.result) {
-          const parsed = typeof json.result === 'string' ? JSON.parse(json.result) : json.result;
-          inMemoryStatus = { ...DEFAULT_STATUS, ...parsed };
-          return inMemoryStatus;
-        }
+      const stored = await client.get('reterminal_status');
+      if (stored) {
+        const parsed = typeof stored === 'string' ? JSON.parse(stored) : stored;
+        inMemoryStatus = { ...DEFAULT_STATUS, ...parsed };
+        return inMemoryStatus;
       }
     } catch (err) {
-      console.warn('[Storage] KV read error:', err.message);
+      console.warn('[Storage] Redis read error:', err.message);
     }
   }
 
@@ -158,25 +177,15 @@ async function saveStatus(data) {
   let storageEngineName = 'Local Disk / Memory';
   let cloudSuccess = false;
 
-  // 1. Cloud KV Storage write (Upstash Redis / Vercel KV)
-  const kv = getKVCredentials();
-  if (kv) {
+  // 1. Cloud KV Storage write via @upstash/redis SDK
+  const client = getRedisClient();
+  if (client) {
     try {
-      const res = await fetch(`${kv.url}/set/reterminal_status`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${kv.token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(JSON.stringify(updated)),
-        signal: AbortSignal.timeout(4000)
-      });
-      if (res.ok) {
-        storageEngineName = 'Upstash Redis / Vercel KV (Cloud Synced)';
-        cloudSuccess = true;
-      }
+      await client.set('reterminal_status', updated);
+      storageEngineName = 'Upstash Redis / Vercel KV (Cloud Synced)';
+      cloudSuccess = true;
     } catch (err) {
-      console.warn('[Storage] KV write error:', err.message);
+      console.warn('[Storage] Redis write error:', err.message);
     }
   }
 
@@ -297,9 +306,9 @@ app.get('/api/info', (req, res) => {
   );
 
   res.json({
-    cloudKVConfigured: !!kv,
+    cloudKVConfigured: !!(kv || getRedisClient()),
     blobConfigured: hasBlob,
-    isCloudReady: !!(kv || hasBlob || !process.env.VERCEL),
+    isCloudReady: !!(kv || getRedisClient() || hasBlob || !process.env.VERCEL),
     isVercel: !!process.env.VERCEL,
     detectedStorageKeys: storageKeys,
     nodeEnv: process.env.NODE_ENV || 'development',
