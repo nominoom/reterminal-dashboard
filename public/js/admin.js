@@ -51,14 +51,27 @@ const PRESETS = {
 
 // Helper to compute relative time formatted string e.g. "3:45 PM"
 function getTimeOffset(minutesToAdd) {
+    const tz = document.getElementById('selectTimezone')?.value || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
+    const is24h = document.getElementById('selectClockFormat')?.value === '24h';
     const d = new Date();
     d.setMinutes(d.getMinutes() + minutesToAdd);
-    let hours = d.getHours();
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    return `${hours}:${minutes} ${ampm}`;
+    
+    try {
+        const timeFormatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: tz,
+            hour: is24h ? '2-digit' : 'numeric',
+            minute: '2-digit',
+            hour12: !is24h
+        });
+        return timeFormatter.format(d);
+    } catch (e) {
+        let hours = d.getHours();
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        return `${hours}:${minutes} ${ampm}`;
+    }
 }
 
 // Show Toast Notification
@@ -129,6 +142,13 @@ async function loadStatus() {
         document.getElementById('toggleQr').checked = data.showQr !== false;
         document.getElementById('toggleInverted').checked = data.theme === 'inverted';
         document.getElementById('toggleFooter').checked = data.showFooter !== false;
+
+        if (data.timezone && document.getElementById('selectTimezone')) {
+            document.getElementById('selectTimezone').value = data.timezone;
+        }
+        if (data.clockFormat && document.getElementById('selectClockFormat')) {
+            document.getElementById('selectClockFormat').value = data.clockFormat;
+        }
 
         adjustPreviewScale();
     } catch (err) {
@@ -204,7 +224,9 @@ async function saveForm(isPreset = false, toastMessage = 'Display updated!') {
         linkSubtitle: document.getElementById('inputLinkSubtitle').value.trim() || 'Scan QR for portfolio & projects',
         showQr: document.getElementById('toggleQr').checked,
         theme: document.getElementById('toggleInverted').checked ? 'inverted' : 'standard',
-        showFooter: document.getElementById('toggleFooter').checked
+        showFooter: document.getElementById('toggleFooter').checked,
+        timezone: document.getElementById('selectTimezone')?.value || 'America/New_York',
+        clockFormat: document.getElementById('selectClockFormat')?.value || '12h'
     };
 
     try {
@@ -269,8 +291,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Toggle listeners for instant response
-    ['toggleQr', 'toggleInverted', 'toggleFooter'].forEach(id => {
+    // Toggle and select listeners for instant response
+    ['toggleQr', 'toggleInverted', 'toggleFooter', 'selectTimezone', 'selectClockFormat'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', () => {

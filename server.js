@@ -38,6 +38,8 @@ const DEFAULT_STATUS = {
   theme: 'standard',
   showHeaderClock: true,
   showFooter: true,
+  timezone: 'America/New_York',
+  clockFormat: '12h',
   updatedAt: new Date().toISOString()
 };
 

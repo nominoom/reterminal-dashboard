@@ -23,6 +23,8 @@ function computeDataHash(data) {
         data.showQr,
         data.theme,
         data.showFooter,
+        data.timezone,
+        data.clockFormat,
         data.updatedAt
     ].join('|');
 }
@@ -32,23 +34,45 @@ function initClock() {
         const now = new Date();
         const timeEl = document.getElementById('clockDisplay');
         const dateEl = document.getElementById('dateDisplay');
+        const tz = (currentConfig && currentConfig.timezone) || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
+        const is24h = currentConfig && currentConfig.clockFormat === '24h';
 
         if (timeEl) {
-            let hours = now.getHours();
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12;
-            hours = hours ? hours : 12; // 12-hour format
-            timeEl.textContent = `${hours}:${minutes} ${ampm}`;
+            try {
+                const timeFormatter = new Intl.DateTimeFormat('en-US', {
+                    timeZone: tz,
+                    hour: is24h ? '2-digit' : 'numeric',
+                    minute: '2-digit',
+                    hour12: !is24h
+                });
+                timeEl.textContent = timeFormatter.format(now);
+            } catch (e) {
+                let hours = now.getHours();
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                hours = hours % 12;
+                hours = hours ? hours : 12;
+                timeEl.textContent = `${hours}:${minutes} ${ampm}`;
+            }
         }
 
         if (dateEl) {
-            const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-            const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-            const dayName = days[now.getDay()];
-            const monthName = months[now.getMonth()];
-            const dateNum = now.getDate();
-            dateEl.textContent = `${dayName}, ${monthName} ${dateNum}`;
+            try {
+                const dateFormatter = new Intl.DateTimeFormat('en-US', {
+                    timeZone: tz,
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric'
+                });
+                dateEl.textContent = dateFormatter.format(now).toUpperCase();
+            } catch (e) {
+                const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+                const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+                const dayName = days[now.getDay()];
+                const monthName = months[now.getMonth()];
+                const dateNum = now.getDate();
+                dateEl.textContent = `${dayName}, ${monthName} ${dateNum}`;
+            }
         }
     }
 
