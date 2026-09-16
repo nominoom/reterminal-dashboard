@@ -88,20 +88,19 @@ function getRedisClient() {
   if (!Redis) return null;
 
   const creds = getKVCredentials();
-  if (creds) {
-    redisClient = new Redis({
-      url: creds.url,
-      token: creds.token
-    });
-    return redisClient;
+  if (creds && creds.url && creds.token) {
+    try {
+      redisClient = new Redis({
+        url: creds.url,
+        token: creds.token
+      });
+      return redisClient;
+    } catch (e) {
+      return null;
+    }
   }
 
-  try {
-    redisClient = Redis.fromEnv();
-    return redisClient;
-  } catch (e) {
-    return null;
-  }
+  return null;
 }
 
 // In-memory clients list for Server-Sent Events (SSE)
@@ -245,13 +244,102 @@ function notifyClients(data) {
   });
 }
 
-// Main page routes
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'main.html'));
+// Server-side HTML pre-renderer to prevent any flash of default "AVAILABLE" content
+async function renderMainHtml() {
+  const templatePath = path.join(__dirname, 'public', 'main.html');
+  let html = fs.readFileSync(templatePath, 'utf8');
+  const data = await getStatus();
+
+  const status = data.status || 'AVAILABLE';
+  const badge = data.statusBadge || 'OPEN FOR QUESTIONS';
+  const nextTime = data.nextAvailableTime || 'Now';
+  const note = data.availabilityNote || data.customNote || '';
+  const domain = data.linkText || 'nominoom.com';
+  const subtitle = data.linkSubtitle || 'Scan QR for portfolio & projects';
+  const nameplate = data.headerNameplate || '';
+  const layout = data.layoutTemplate || 'executive';
+  const font = data.fontFamily || 'sans';
+  const themeClass = data.theme === 'inverted' ? 'theme-inverted' : (data.theme === 'retro' ? 'theme-retro' : '');
+  const showNameplate = nameplate.trim().length > 0;
+  const showNote = note.trim().length > 0;
+
+  // 1. Pre-render classes
+  html = html.replace(
+    /class="dashboard[^"]*"/,
+    `class="dashboard layout-${layout} font-${font} ${themeClass}"`
+  );
+
+  // 2. Pre-render header elements
+  html = html.replace(
+    '<span class="header-nameplate" id="headerNameplate">NOMINOOM</span>',
+    `<span class="header-nameplate" id="headerNameplate" style="display: ${showNameplate ? 'inline-block' : 'none'};">${nameplate.toUpperCase()}</span>`
+  );
+
+  html = html.replace(
+    '<span class="status-badge-tag" id="statusBadge">OPEN FOR QUESTIONS</span>',
+    `<span class="status-badge-tag" id="statusBadge">${badge}</span>`
+  );
+
+  // 3. Pre-render status and time
+  html = html.replace(
+    '<h1 id="mainStatus">AVAILABLE</h1>',
+    `<h1 id="mainStatus">${status}</h1>`
+  );
+
+  html = html.replace(
+    '<span class="next-time-highlight" id="nextTimeHighlight">Now</span>',
+    `<span class="next-time-highlight" id="nextTimeHighlight">${nextTime}</span>`
+  );
+
+  html = html.replace(
+    '<div class="custom-subnote" id="customSubnote">\n                    Feel free to say hi or drop in\n                </div>',
+    `<div class="custom-subnote" id="customSubnote" style="display: ${showNote ? 'block' : 'none'};">${note}</div>`
+  );
+
+  // 4. Pre-render footer and split domain
+  html = html.replace(
+    '<span class="footer-domain" id="footerDomain">nominoom.com</span>',
+    `<span class="footer-domain" id="footerDomain">${domain}</span>`
+  );
+
+  html = html.replace(
+    '<div class="footer-domain" id="splitDomain" style="font-size: 16px;">nominoom.com</div>',
+    `<div class="footer-domain" id="splitDomain" style="font-size: 16px;">${domain}</div>`
+  );
+
+  html = html.replace(
+    '<span class="footer-subtext" id="footerSubtext">Scan QR for portfolio & projects</span>',
+    `<span class="footer-subtext" id="footerSubtext">${subtitle}</span>`
+  );
+
+  // 5. Inject synchronous initial status payload
+  const scriptInjection = `<script>window.__INITIAL_STATUS__ = ${JSON.stringify(data)};</script>\n</head>`;
+  html = html.replace('</head>', scriptInjection);
+
+  return html;
+}
+
+// Main page routes with Server-Side Pre-Rendering (Instant zero-flash load)
+app.get('/', async (req, res) => {
+  try {
+    const html = await renderMainHtml();
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.send(html);
+  } catch (err) {
+    res.sendFile(path.join(__dirname, 'public', 'main.html'));
+  }
 });
 
-app.get('/main', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'main.html'));
+app.get('/main', async (req, res) => {
+  try {
+    const html = await renderMainHtml();
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.send(html);
+  } catch (err) {
+    res.sendFile(path.join(__dirname, 'public', 'main.html'));
+  }
 });
 
 app.get('/admin', (req, res) => {

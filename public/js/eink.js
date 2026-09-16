@@ -231,7 +231,8 @@ function updateUI(data) {
     if (qrContainer && typeof QRCode !== 'undefined') {
         if (showQr) {
             qrContainer.style.display = 'flex';
-            if (!qrCodeInstance) {
+            if (!qrCodeInstance || qrContainer.children.length === 0) {
+                qrContainer.innerHTML = '';
                 qrCodeInstance = new QRCode(qrContainer, {
                     text: targetUrl,
                     width: 62,
@@ -251,7 +252,8 @@ function updateUI(data) {
     if (splitQrContainer && typeof QRCode !== 'undefined') {
         if (showQr && data.layoutTemplate === 'split') {
             splitQrContainer.style.display = 'flex';
-            if (!splitQrCodeInstance) {
+            if (!splitQrCodeInstance || splitQrContainer.children.length === 0) {
+                splitQrContainer.innerHTML = '';
                 splitQrCodeInstance = new QRCode(splitQrContainer, {
                     text: targetUrl,
                     width: 90,
@@ -263,6 +265,8 @@ function updateUI(data) {
             } else {
                 splitQrCodeInstance.makeCode(targetUrl);
             }
+        } else {
+            splitQrContainer.style.display = 'none';
         }
     }
 }
@@ -310,13 +314,23 @@ function restoreFromCache() {
     } catch (e) {}
 }
 
-// Initialization on DOM load
-document.addEventListener('DOMContentLoaded', () => {
-    restoreFromCache();
+// Immediate hydration & event binding
+function initApp() {
+    if (window.__INITIAL_STATUS__) {
+        updateUI(window.__INITIAL_STATUS__);
+    } else {
+        restoreFromCache();
+    }
     initClock();
     setupSSE();
     fetchStatus();
 
     // Continuous smart polling every 3 seconds
     setInterval(fetchStatus, 3000);
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
