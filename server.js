@@ -10,10 +10,10 @@ let Redis = null;
 try {
   const upstash = require('@upstash/redis');
   Redis = upstash.Redis;
-} catch (e) {}
+} catch (e) { }
 
 let vercelBlobSdk = null;
-try { vercelBlobSdk = require('@vercel/blob'); } catch (e) {}
+try { vercelBlobSdk = require('@vercel/blob'); } catch (e) { }
 
 const app = express();
 const PORT = process.env.PORT || 3000;

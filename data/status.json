@@ -1,5 +1,5 @@
 {
-  "status": "IN A MEETING",
+  "status": "DEEP FOCUS",
   "statusType": "available",
   "statusBadge": "BUSY",
   "nextAvailableTime": "5:30 PM",
@@ -10,7 +10,12 @@
   "linkSubtitle": "Scan QR for portfolio & links",
   "showQr": true,
   "theme": "standard",
+  "layoutTemplate": "split",
+  "fontFamily": "mono",
+  "headerNameplate": "",
   "showHeaderClock": true,
   "showFooter": true,
-  "updatedAt": "2026-09-15T19:47:18.502Z"
+  "timezone": "America/New_York",
+  "clockFormat": "12h",
+  "updatedAt": "2026-09-15T21:06:06.614Z"
 }
